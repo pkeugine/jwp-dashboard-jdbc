@@ -10,12 +10,12 @@ public class DataSourceConfig {
 
     public static javax.sql.DataSource getInstance() {
         if (Objects.isNull(INSTANCE)) {
-            INSTANCE = createJdbcDataSource();
+            INSTANCE = createH2JdbcDataSource();
         }
         return INSTANCE;
     }
 
-    private static JdbcDataSource createJdbcDataSource() {
+    private static JdbcDataSource createH2JdbcDataSource() {
         final JdbcDataSource jdbcDataSource = new JdbcDataSource();
         jdbcDataSource.setUrl("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;");
         jdbcDataSource.setUser("");

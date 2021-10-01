@@ -34,29 +34,38 @@ public class ControllerScanner {
         final Map<Class<?>, Object> controllers = new HashMap<>();
         try {
             for (Class<?> clazz : preInitiatedControllers) {
-                Set<Class<?>> repositories = reflections.getTypesAnnotatedWith(Repository.class);
-                Constructor<?> autowiredConstructors = Arrays.stream(clazz.getDeclaredConstructors())
-                        .filter(constructor -> constructor.isAnnotationPresent(Autowired.class))
-                        .findFirst()
-                        .orElse(null);
-                if (autowiredConstructors != null) {
-                    Class<?> daoClass = Arrays.stream(autowiredConstructors.getParameters())
-                            .map(Parameter::getType)
-                            .filter(repositories::contains)
-                            .findFirst()
-                            .orElseThrow();
-                    Object daoInstance = daoClass.getDeclaredConstructor().newInstance();
-                    Object classInstance = autowiredConstructors.newInstance(daoInstance);
+                Constructor<?> autowiredConstructor = scanAutowiredConstructor(clazz);
+                if (autowiredConstructor == null) {
+                    Object classInstance = clazz.getDeclaredConstructor().newInstance();
                     controllers.put(clazz, classInstance);
                     continue;
                 }
-                Object classInstance = clazz.getDeclaredConstructor().newInstance();
+                Object daoInstance = createDaoInstance(autowiredConstructor);
+                Object classInstance = autowiredConstructor.newInstance(daoInstance);
                 controllers.put(clazz, classInstance);
             }
-        } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
-            log.error(e.getMessage());
+        } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException exception) {
+            log.error(exception.getMessage());
         }
 
         return controllers;
+    }
+
+    private Constructor<?> scanAutowiredConstructor(Class<?> clazz) {
+        return Arrays.stream(clazz.getDeclaredConstructors())
+                .filter(constructor -> constructor.isAnnotationPresent(Autowired.class))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Object createDaoInstance(Constructor<?> autowiredConstructors) throws InstantiationException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
+        Set<Class<?>> repositories = reflections.getTypesAnnotatedWith(Repository.class);
+        Class<?> daoClass = Arrays.stream(autowiredConstructors.getParameters())
+                .map(Parameter::getType)
+                .filter(repositories::contains)
+                .findFirst()
+                .orElseThrow();
+        Object daoInstance = daoClass.getDeclaredConstructor().newInstance();
+        return daoInstance;
     }
 }
